@@ -179,13 +179,13 @@ export default function RoutesPage() {
               { label: 'Route Name', key: 'route_name', placeholder: 'Route 1 - City Center' },
               { label: 'Source', key: 'source', placeholder: 'College Gate' },
               { label: 'Destination', key: 'destination', placeholder: 'Bus Stand' },
-            ].map(({ label, key, placeholder, type }) => (
+            ].map(({ label, key, placeholder }) => (
               <div key={key}>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'hsl(var(--text-secondary))' }}>{label}</label>
                 <input
-                  type={type ?? 'text'} className="input" placeholder={placeholder}
+                  type="text" className="input" placeholder={placeholder}
                   value={(form as any)[key]}
-                  onChange={(e) => setForm((f) => ({ ...f, [key]: type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value }))}
+                  onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                 />
               </div>
             ))}
