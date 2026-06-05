@@ -55,7 +55,30 @@ function InteractiveMapEditor({ stops, onChange }: { stops: Stop[]; onChange: (s
   const updatePosition = (i: number, lat: number, lng: number) =>
     onChange(stops.map((s, j) => j === i ? { ...s, lat, lng } : s))
 
-  const center: [number, number] = stops.length > 0 ? [stops[0].lat, stops[0].lng] : [17.8205, 83.3444] // Default GVP area
+  const center: [number, number] = stops.length > 0 ? [stops[0].lat, stops[0].lng] : [17.8205, 83.3444]
+
+  const [routePath, setRoutePath] = useState<[number, number][]>([])
+
+  useEffect(() => {
+    async function fetchRoute() {
+      if (stops.length < 2) {
+        setRoutePath([])
+        return
+      }
+      try {
+        const coords = stops.map(s => `${s.lng},${s.lat}`).join(';')
+        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`)
+        const data = await res.json()
+        if (data.routes && data.routes[0]) {
+          const coordinates = data.routes[0].geometry.coordinates
+          setRoutePath(coordinates.map((c: any) => [c[1], c[0]]))
+        }
+      } catch (err) {
+        console.error('Failed to fetch OSRM route', err)
+      }
+    }
+    fetchRoute()
+  }, [stops])
 
   return (
     <div className="grid md:grid-cols-2 gap-6 mt-4">
@@ -83,10 +106,17 @@ function InteractiveMapEditor({ stops, onChange }: { stops: Stop[]; onChange: (s
             </Marker>
           ))}
           
-          {stops.length > 1 && (
+          {routePath.length > 0 ? (
             <Polyline 
+              key={routePath.length}
+              positions={routePath} 
+              pathOptions={{ color: '#8b5cf6', weight: 5, opacity: 0.9 }} 
+            />
+          ) : stops.length > 1 && (
+            <Polyline 
+              key={stops.length}
               positions={stops.map(s => [s.lat, s.lng])} 
-              pathOptions={{ color: '#2563eb', weight: 4, opacity: 0.8 }} 
+              pathOptions={{ color: '#2563eb', weight: 4, opacity: 0.8, dashArray: '8,8' }} 
             />
           )}
 
