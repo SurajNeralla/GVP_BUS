@@ -3,23 +3,39 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { Plus, Pencil, Trash2, MapPin, X, Loader2, ChevronRight } from 'lucide-react'
 import type { Route, Stop } from '@/types'
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents, useMap } from 'react-leaflet'
+import { useEffect } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
-import markerIcon from 'leaflet/dist/images/marker-icon.png'
-import markerShadow from 'leaflet/dist/images/marker-shadow.png'
-
-const customIcon = new L.Icon({
-  iconUrl: markerIcon,
-  iconRetinaUrl: markerIcon2x,
-  shadowUrl: markerShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
+// Fix leaflet default icon
+delete (L.Icon.Default.prototype as any)._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
+
+const stopIcon = L.divIcon({
+  html: `<div style="
+    width:16px;height:16px;border-radius:50%;
+    background:#2563eb;border:3px solid white;
+    box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  "></div>`,
+  className: '',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+})
+
+function FitBounds({ positions }: { positions: [number, number][] }) {
+  const map = useMap()
+  useEffect(() => {
+    if (positions.length > 1) {
+      map.fitBounds(positions, { padding: [40, 40], maxZoom: 15 })
+    }
+  }, [map, positions])
+  return null
+}
 
 const emptyRoute = { route_name: '', source: '', destination: '', stops: [] as Stop[], fare: 0 }
 
@@ -54,7 +70,7 @@ function InteractiveMapEditor({ stops, onChange }: { stops: Stop[]; onChange: (s
               key={i} 
               position={[s.lat, s.lng]} 
               draggable 
-              icon={customIcon}
+              icon={stopIcon}
               eventHandlers={{
                 dragend: (e) => {
                   const marker = e.target
@@ -68,8 +84,14 @@ function InteractiveMapEditor({ stops, onChange }: { stops: Stop[]; onChange: (s
           ))}
           
           {stops.length > 1 && (
-            <Polyline positions={stops.map(s => [s.lat, s.lng])} color="hsl(var(--brand-primary))" weight={4} opacity={0.8} />
+            <Polyline 
+              positions={stops.map(s => [s.lat, s.lng])} 
+              pathOptions={{ color: '#2563eb', weight: 4, opacity: 0.8 }} 
+            />
           )}
+
+          {/* Auto zoom to fit all stops when edited */}
+          <FitBounds positions={stops.map(s => [s.lat, s.lng])} />
         </MapContainer>
         <div className="absolute top-2 right-2 z-20 p-2 rounded-lg text-xs shadow-md backdrop-blur-md" 
              style={{ background: 'hsl(var(--bg-card) / 0.8)', color: 'hsl(var(--text-primary))', border: '1px solid hsl(var(--border-subtle))' }}>
