@@ -5,7 +5,8 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { formatDistanceToNow } from 'date-fns'
-import type { Bus, BusLocation } from '@/types'
+import type { Bus, BusLocation, Route, Stop } from '@/types'
+import { useState, useEffect } from 'react'
 
 delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -33,6 +34,85 @@ function makeBusIcon(status: string, busNumber: string) {
   })
 }
 
+const stopIcon = L.divIcon({
+  html: `<div style="
+    width:10px;height:10px;border-radius:50%;
+    background:hsl(38,92%,50%);border:2px solid white;
+    box-shadow:0 1px 4px rgba(0,0,0,0.3);
+  "></div>`,
+  className: '',
+  iconSize: [10, 10],
+  iconAnchor: [5, 5],
+})
+
+function LiveBusRoute({ bus, location, route }: { bus: Bus; location: BusLocation; route?: Route }) {
+  const [osrmRoute, setOsrmRoute] = useState<[number, number][]>([])
+
+  useEffect(() => {
+    async function fetchRoute() {
+      if (!route || route.stops.length < 2) return
+      try {
+        const coords = route.stops.map(s => `${s.lng},${s.lat}`).join(';')
+        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`)
+        const data = await res.json()
+        if (data.routes && data.routes[0]) {
+          const coordinates = data.routes[0].geometry.coordinates
+          setOsrmRoute(coordinates.map((c: any) => [c[1], c[0]]))
+        }
+      } catch (err) {
+        console.error('Failed to fetch OSRM route for tracking', err)
+      }
+    }
+    fetchRoute()
+  }, [route])
+
+  return (
+    <>
+      {/* Route Line & Stops */}
+      {route && (
+        <>
+          {osrmRoute.length > 0 ? (
+            <Polyline 
+              positions={osrmRoute} 
+              pathOptions={{ color: tripColors[location.trip_status] ?? '#3b82f6', weight: 4, opacity: 0.5 }} 
+            />
+          ) : route.stops.length > 1 && (
+            <Polyline 
+              positions={route.stops.map(s => [s.lat, s.lng])} 
+              pathOptions={{ color: tripColors[location.trip_status] ?? '#3b82f6', weight: 3, opacity: 0.5, dashArray: '6,6' }} 
+            />
+          )}
+          
+          {route.stops.map((stop, i) => (
+            <Marker key={i} position={[stop.lat, stop.lng]} icon={stopIcon}>
+              <Popup>
+                <p style={{ margin: 0, fontWeight: 600, fontSize: 12 }}>📍 {stop.name}</p>
+              </Popup>
+            </Marker>
+          ))}
+        </>
+      )}
+
+      {/* Bus Marker */}
+      <Marker
+        position={[location.latitude!, location.longitude!]}
+        icon={makeBusIcon(location.trip_status, bus.bus_number)}
+      >
+        <Popup>
+          <div style={{ color: '#0f172a', minWidth: 160 }}>
+            <p style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>🚌 {bus.bus_number}</p>
+            <p style={{ fontSize: 12, margin: '2px 0' }}>Status: <strong style={{ color: tripColors[location.trip_status] }}>{location.trip_status.replace('_', ' ')}</strong></p>
+            {route && <p style={{ fontSize: 12, margin: '2px 0' }}>Route: <strong>{route.route_name}</strong></p>}
+            <p style={{ fontSize: 11, color: '#94a3b8', margin: '4px 0 0' }}>
+              {formatDistanceToNow(new Date(location.updated_at), { addSuffix: true })}
+            </p>
+          </div>
+        </Popup>
+      </Marker>
+    </>
+  )
+}
+
 export default function TrackingPage() {
   const locations = useAllBusLocationsRealtime()
 
@@ -41,6 +121,14 @@ export default function TrackingPage() {
     queryFn: async () => {
       const { data } = await supabase.from('buses').select('*')
       return (data ?? []) as Bus[]
+    },
+  })
+
+  const { data: routes = [] } = useQuery({
+    queryKey: ['all-routes'],
+    queryFn: async () => {
+      const { data } = await supabase.from('routes').select('*')
+      return (data ?? []) as Route[]
     },
   })
 
@@ -79,23 +167,8 @@ export default function TrackingPage() {
           {activeLocations.map((loc) => {
             const bus = getBus(loc.bus_id)
             if (!bus) return null
-            return (
-              <Marker
-                key={loc.bus_id}
-                position={[loc.latitude!, loc.longitude!]}
-                icon={makeBusIcon(loc.trip_status, bus.bus_number)}
-              >
-                <Popup>
-                  <div style={{ color: '#0f172a', minWidth: 160 }}>
-                    <p style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>🚌 {bus.bus_number}</p>
-                    <p style={{ fontSize: 12, margin: '2px 0' }}>Status: <strong style={{ color: tripColors[loc.trip_status] }}>{loc.trip_status.replace('_', ' ')}</strong></p>
-                    <p style={{ fontSize: 11, color: '#94a3b8', margin: '4px 0 0' }}>
-                      {formatDistanceToNow(new Date(loc.updated_at), { addSuffix: true })}
-                    </p>
-                  </div>
-                </Popup>
-              </Marker>
-            )
+            const route = routes.find(r => r.id === bus.route_id)
+            return <LiveBusRoute key={loc.bus_id} bus={bus} location={loc} route={route} />
           })}
         </MapContainer>
       </div>
