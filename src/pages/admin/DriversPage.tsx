@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { adminCreateUser } from '@/lib/supabase-admin'
 import { Plus, Loader2, X, UserCog } from 'lucide-react'
 
 export default function DriversPage() {
@@ -40,32 +40,26 @@ export default function DriversPage() {
     e.preventDefault()
     setLoading(true); setError('')
     try {
-      const email = form.email.toLowerCase().trim()
-      
-      // 1. Create the Auth User with Supabase Admin client
-      const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
-        email,
+      // 1. Create the Auth User using our custom fetch wrapper
+      const userData = await adminCreateUser({
+        email: form.email,
         password: form.password,
-        email_confirm: true,
-        user_metadata: { role: 'driver', full_name: form.full_name }
+        role: 'driver'
       })
       
-      if (authErr) throw authErr
-      if (!authData?.user) throw new Error('User creation failed.')
-
-      const userId = authData.user.id
+      const userId = userData.id
 
       // 2. Wait a moment for the database trigger to auto-create the profile
       await new Promise(resolve => setTimeout(resolve, 500))
 
-      // 3. Update the profile with extra details (phone) using Admin client
-      await supabaseAdmin
+      // 3. Update the profile with extra details (phone) using regular client
+      await supabase
         .from('profiles')
         .update({ phone: form.phone, role: 'driver', full_name: form.full_name })
         .eq('id', userId)
 
       // 4. Create the driver record
-      const { error: insertErr } = await supabaseAdmin
+      const { error: insertErr } = await supabase
         .from('drivers')
         .insert({ profile_id: userId, bus_id: form.bus_id || null })
 

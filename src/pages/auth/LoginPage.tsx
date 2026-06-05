@@ -51,16 +51,17 @@ export default function LoginPage() {
       
       // If user doesn't exist yet, auto-create them using the admin client
       if (authError && authError.message.toLowerCase().includes('invalid login credentials')) {
-        const { supabaseAdmin } = await import('@/lib/supabase-admin')
+        const { adminCreateUser } = await import('@/lib/supabase-admin')
         
-        const { error: createErr } = await supabaseAdmin.auth.admin.createUser({
-          email: emailLower,
-          password: defaultPassword,
-          email_confirm: true,
-          user_metadata: { role: 'student' }
-        })
-        
-        if (createErr) throw createErr
+        try {
+          await adminCreateUser({
+            email: emailLower,
+            password: defaultPassword,
+            role: 'student'
+          })
+        } catch (createErr: any) {
+          throw createErr
+        }
         
         // Retry sign in
         const retry = await signInWithPassword(emailLower, defaultPassword)
