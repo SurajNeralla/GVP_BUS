@@ -143,7 +143,7 @@ export default function DriverDashboard() {
           </div>
 
           {/* Route info */}
-          {route && (
+          {route ? (
             <div className="card p-4">
               <h2 className="font-semibold text-sm mb-3" style={{ color: 'hsl(var(--text-primary))' }}>Today's Route</h2>
               <div className="flex items-center gap-2 text-xs mb-3">
@@ -162,6 +162,12 @@ export default function DriverDashboard() {
                   </div>
                 ))}
               </div>
+            </div>
+          ) : (
+            <div className="card p-4 text-center">
+               <AlertTriangle className="mx-auto mb-2 opacity-50" size={24} style={{ color: 'hsl(var(--danger))' }} />
+               <p className="font-semibold text-sm" style={{ color: 'hsl(var(--text-primary))' }}>No Route Assigned</p>
+               <p className="text-xs mt-1" style={{ color: 'hsl(var(--text-muted))' }}>Please ask the admin to assign a route to your bus.</p>
             </div>
           )}
         </div>

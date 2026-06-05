@@ -63,6 +63,22 @@ function LoadingScreen() {
   )
 }
 
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
+  constructor(props: any) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error: any) { return { hasError: true, error }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-10 text-red-500">
+          <h1 className="text-2xl font-bold mb-4">Something went wrong.</h1>
+          <pre className="bg-red-500/10 p-4 rounded-xl overflow-auto text-sm">{this.state.error?.message || String(this.state.error)}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // -------------------------------------------------------
 // Route Guards
 // -------------------------------------------------------
@@ -163,10 +179,12 @@ function AppRouter() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <HashRouter>
-        <div className="mesh-bg" />
-        <AppRouter />
-      </HashRouter>
+      <ErrorBoundary>
+        <HashRouter>
+          <div className="mesh-bg" />
+          <AppRouter />
+        </HashRouter>
+      </ErrorBoundary>
     </QueryClientProvider>
   )
 }
