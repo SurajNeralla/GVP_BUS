@@ -55,7 +55,8 @@ function InteractiveMapEditor({ stops, onChange }: { stops: Stop[]; onChange: (s
   const updatePosition = (i: number, lat: number, lng: number) =>
     onChange(stops.map((s, j) => j === i ? { ...s, lat, lng } : s))
 
-  const center: [number, number] = stops.length > 0 ? [stops[0].lat, stops[0].lng] : [17.8205, 83.3444]
+  // MapContainer center must be strictly immutable. We use FitBounds to pan.
+  const defaultCenter: [number, number] = [17.7384, 83.2167]
 
   const [routePath, setRoutePath] = useState<[number, number][]>([])
 
@@ -84,7 +85,7 @@ function InteractiveMapEditor({ stops, onChange }: { stops: Stop[]; onChange: (s
     <div className="grid md:grid-cols-2 gap-6 mt-4">
       {/* Map Section */}
       <div className="h-[400px] rounded-xl overflow-hidden border relative" style={{ borderColor: 'hsl(var(--border-subtle))' }}>
-        <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%', zIndex: 10 }}>
+        <MapContainer center={defaultCenter} zoom={12} style={{ height: '100%', width: '100%', zIndex: 10 }}>
           <TileLayer url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" attribution="Google Maps" />
           <MapEvents stops={stops} onChange={onChange} />
           
